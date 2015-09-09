@@ -13,6 +13,7 @@
 \usepackage{multirow}
 \usepackage{array}
 \usepackage{amssymb}
+\usepackage{color}
 \frenchspacing
 \setlength{\pdfpagewidth}{8.5in}
 \setlength{\pdfpageheight}{11in}
@@ -24,6 +25,23 @@
 % The file aaai.sty is the style file for AAAI Press 
 % proceedings, working notes, and technical reports.
 %
+
+% edit & comments
+\newcommand{\xhedit}[1]{{\color{blue} #1}}
+\newcommand{\xhcomment}[1]{\xhedit{[XH: #1]}}
+
+% math symbols
+% influence strength
+\newcommand{\ISM}{A}
+\newcommand{\IS}{\alpha}
+
+% popularity of story (diffusion speed or activation probability)
+\newcommand{\DS}{P}
+
+% number of Activation node
+\newcommand{\NActNodes}{N}
+
+
 \title{Formatting Instructions \\for Authors Using \LaTeX{}}
 \author{AAAI Press\\
 Association for the Advancement of Artificial Intelligence\\

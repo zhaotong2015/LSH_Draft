@@ -1,6 +1,9 @@
-\subsection{Existence of diffusion speed heterogeneity}
-We make an interesting analysis of message's diffusion speed on 2 real world datasets: Sina microblog and U.S. patent. We normalize the activation times with Min-Max method and divide the time length of cascade into several periods.
-As diffusion speed is unmeasurable, we compute the $\frac{1}{\overline{\Delta t}}$ in each life span that is proportion to the ground truth diffusion speed. As in Figure \ref{fig:PatentHetero}, the maximum of $\frac{1}{\overline{\Delta t}}$ reaches 80 in Sina and about 12 in Patent dataset, while the minimum approaches 0. There is distinct difference of diffusion speed in different life span. However, former algorithms have not taken this into consideration. They assume that the coefficient of $\Delta t$'s distribution which controls diffusion speed does not change with time. We believe the life span heterogeneity is a key point to re-understand network inference problem.
+In this section, we carry out empirical analysis on two real world cascades datasets to show that the assumption of constant influence strength does not hold. We then provide a method to estimate the popularity of the information under propagation empirically from the observed cascades. 
+
+\subsection{Existence of influence strength heterogeneity}
+In many network inference models, the influence strength parameter $\alpha_{u,v}$ models the speed of diffusion, namely the time it takes for the information to propagation from user $u$ to $v$.  We empirically estimate the average diffusion speed as the inverse of delay time in two real world cascade datsets, Sina microblog and US Patent to show the heterogeneity of influence strength. \xhcomment{Please add a brief introduction to the datasets.}
+
+The estimation process is as follows: we first normalize the span of each cascade to $[0,1]$ and split the interval into ten bins. We treat each bin as one stage of the diffusion process. We estimate the average diffusion speed in each bin as the inverse of delay time $\frac{1}{\Delta_t}$ using the available explicit following information in the datasets. \xhcomment{What is the unit of y-axis? Is it the diffusion speed after normalization?} The results on two cascades from each dataset is shown in Figure \ref{fig:PatentHetero}. 
 \begin{figure}[H]
 \subfigure[Cascades of Sina Microblog dataset]{\centerline{
 \includegraphics[width=0.55\linewidth]{figures/SinaA.jpg}
@@ -8,16 +11,31 @@ As diffusion speed is unmeasurable, we compute the $\frac{1}{\overline{\Delta t}
 \subfigure[Cascades of U.S. Patent dataset]{\centerline{
 \includegraphics[width=0.55\linewidth]{figures/PatentA.jpg}
 \includegraphics[width=0.55\linewidth]{figures/PatentB.jpg}}}
-\caption{The diffusion speed of 2 real world dataset differs a lot in different life span. }\label{fig:PatentHetero}
+\caption{The diffusion speed in different stages of diffusion process in two real world datasets. \xhcomment{Could we provide name for each cascade? link the story in microblog and the porduction in patent}}\label{fig:PatentHetero}
 \end{figure}
+
+The results clearly demonstrate the deviation from the assumption of constant diffusion speed. Another interesting observation is that the how the diffusion speed depends on the diffusion stages varies dramatically over different cascades and datasets. For the microblog datasets, usually the diffusion speed decrease when the story under propagation becomes stale and less interesting as time elapses. On the contrary, in the patent datsets, newly invented product gradually gains popularity leading to increment in the diffusion speed. 
+
+%It implies that assuming particular functional form of the popularity for all cascades may lead to inaccurate estimation. As a result, we propose to represent the cascade popularity $\DS(t)$ as a piece-wise constant function. Assume we split the normalized span of the cascade into $k$ bins with $t_0=0 < t_1 < \ldots < t_K = 1$. We have $\DS(t) = \DS_i$ if $t\in[t_{i-1}, t_i]$.
+
+%We make an interesting analysis of message's diffusion speed on 2 real world datasets: Sina microblog and U.S. patent. We normalize the activation times with Min-Max method and divide the time length of cascade into several periods.
+%As diffusion speed is unmeasurable, we compute the $\frac{1}{\overline{\Delta t}}$ in each life span that is proportion to the ground truth diffusion speed. As in Figure \ref{fig:PatentHetero}, the maximum of $\frac{1}{\overline{\Delta t}}$ reaches 80 in Sina and about 12 in Patent dataset, while the minimum approaches 0. There is distinct difference of diffusion speed in different life span. However, former algorithms have not taken this into consideration. They assume that the coefficient of $\Delta t$'s distribution which controls diffusion speed does not change with time. We believe the life span heterogeneity is a key point to re-understand network inference problem.
+
 %==========================
-\subsection{Validity of diffusion speed approximation approach}
-We aim to make use of diffusion speed information in network inference algorithm. But the estimation of diffusion speed requires the parent relationship in cascades which is seldom available in real world data, we would like to use the number of activated nodes as surrogate for the diffusion speed, which is:
-\begin{equation}
-S_p(t_j)=(I^{t_j+lag}-I^{t_j-lag})/I^T
-\end{equation}
-$t_j$ is the target time stamp. $lag$ is half the length of sliding window around $t_j$, $T$ is the end of every cascade. $I^t$ refers to the number of infected nodes by time $t$. The value of $S_p(t_j)$ ranges from 0 to 1.
-\\We show the validity of this approach by empirically calculating the correlation. We select 80 long cascades in Patent dataset and 50 long cascades in Sina dataset. As in Table \ref{tab:Corre}, we use Evans's (1996) interpretation for r coefficient to describe the strength of correlation. 65\% of Patent cascades and 90\% of Sina cascades present strong or very stronger correlation. Our approach of calculating activated nodes number can reflect the level of diffusion speed to a large extent.
+\subsection{Approximation popularity with number of activation}
+Direct estimation of average diffusion speed requires the diffusion pathway which is usually not available in real world datasets. It is even harder to estimate the average activation probability from observed cascades. As a result, we have to seek approximation for the true popularity for different stages in the diffusion process. In the work, we find the total number of activated nodes in each stage of the diffusion process as a good surrogate for the average diffusion speed or the activation probability as a measure for the popularity level. 
+
+Let $I^c(t)$ be the number of activated nodes in cascades $c$ till time $t$. We approximate the popularity level with the following formula:
+$$
+\DS^c(t) = (I^c(t+\frac{L}{2}) - I^c(t-\frac{L}{2})) / I^c(1).
+$$
+That is to say, the estimated popularity level at time $t$ is ratio of nodes activated in the windows of length $L$, $[t-\frac{L}{2}, t+\frac{L}{2}]$. 
+
+We carry out experiments to show that the proposed surrogate popularity level is a valid approximation. We select 80 long cascades in Patent dataset and 50 long cascades in Sina dataset\xhcomment{More details on how you choose the cascades? random? longest?}. For each cascade, we first normalize the time span to $[0,1]$ and split it into $K$ bins\xhcomment{What K did you use?}. The true popularity level is assumed to be constant as the average diffusion speed estimated from the particular cascade. We compare the true popularity level and the surrogate popularity at each activation time $t_a$ by computing the Pearson correlation for each cascade. The distribution on the correlation coefficient on the two datasets are shown in Table \ref{tab:Corre}. More than 60\% cascades and 80\% cascades in Patent and Sina microblog dataset respective have correlation coefficient $r>0.6$ with the true popularity level.   
+\xhcomment{This is just my guess of what you are doing? Please check is the description correction?}
+
+
+%We show the validity of this approach by empirically calculating the correlation. We select 80 long cascades in Patent dataset and 50 long cascades in Sina dataset. As in Table \ref{tab:Corre}, we use Evans's (1996) interpretation for r coefficient to describe the strength of correlation. 65\% of Patent cascades and 90\% of Sina cascades present strong or very stronger correlation. Our approach of calculating activated nodes number can reflect the level of diffusion speed to a large extent.
 \begin{table}[H]
 \caption{Correlation coefficients between ground truth diffusion speed and the number of activated nodes in time unit.}
 \begin{tabular}{c|c|c|c}
