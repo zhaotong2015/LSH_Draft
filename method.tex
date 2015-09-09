@@ -1,0 +1,131 @@
+In this section, we'll introduce (C)LSH method that aims to improve inferring performance by taking advantage of information about messages' diffusion speed. Note that our methods don't ask for any extra input data other than traditional cascades set. We'll show that our method can be easily incorporated into existing network inference algorithms without adding any computational overhead. Some procedures for optimizing our method will be discussed at the end of this section.
+%==========================
+\subsection{Data and definitions}
+%==========================
+\subsection{Incorporation with existing algorithms}
+We incorporate our method into 3 existing algorithms: NetRate, ConNie and NetInf. We make several changes to the original algorithms without breaking their main structure.
+\begin{itemize}
+\item LSH-NetRate
+\\The transmission likelihood of an activated node $j$ infecting $i$ depends not only on infection time delay $(t_i-t_j)$ and edge strength $\alpha_{ji}$, but also on the diffusion speed of message $c$ at time $t_j$. Transmission is more likely to occur with high diffusion speed, short infection interval and strong connection of edge.
+\\We redefine the transmission rate function by combining edge strength and diffusion speed together, denoted as:
+\begin{equation}
+g_{ji}(t_j,\alpha_{ji})=\alpha_{ji}*S_p(t_j);
+\end{equation}
+\\Subsequently, survival analysis functions are:
+\begin{itemize}
+\item Exponential model:
+\begin{numcases}{f(t_i|t_j,g_{ji})=}
+g_{ji}*e^{-g_{ji}*(t_i-t_j)}, & if $t_j<t_i$ \nonumber \\
+0, & otherwise \nonumber
+\end{numcases}
+%-------------
+\begin{flalign*}
+    & \log{S(t_i|t_j,g_{ji})}=-g_{ji}*(t_i-t_j) \nonumber &\\
+    & H(t_i|t_j,g_{ji})=g_{ji} &\\
+\end{flalign*}
+%--------------
+\item Power law model:
+\begin{numcases}{f(t_i|t_j,g_{ji})=}
+\frac{g_{ji}}{\delta}(\frac{t_i-t_j}{\delta})^{-1-g_{ji}}, & if $t_j<t_i$ \nonumber \\
+0, & otherwise \nonumber
+\end{numcases}
+\begin{flalign*}
+    & \log{S(t_i|t_j,g_{ji})}=-g_{ji}*log(\frac{t_i-t_j}{\delta}) \nonumber &\\
+    & H(t_i|t_j,g_{ji})=g_{ji}\ast \frac{1}{t_i-t_j} &\\
+\end{flalign*}
+%--------------
+\item Rayleigh model:
+\begin{numcases}{f(t_i|t_j,g_{ji})=}
+g_{ji}(t_i-t_j)e^{-\frac{1}{2} g_{ji} (t_i-t_j)^2}, & if $t_j<t_i$ \nonumber \\
+0, & otherwise \nonumber
+\end{numcases}
+\begin{flalign*}
+    & \log{S(t_i|t_j,g_{ji})}=-g_{ji}*\frac{(t_i-t_j)^2}{2} \nonumber &\\
+    & H(t_i|t_j,g_{ji})=g_{ji}\ast (t_i-t_j) &\\
+\end{flalign*}
+%\renewcommand{\multirowsetup}\centering
+%\begin{table*}
+%\begin{tabular}{p{2cm}<{\leftline}|p{7.5cm}<{\centering}|p{3cm}<{\centering}|p{3cm}<{\centering}}
+%\hline  
+%\multirow{2}{*}{Model} & Tansmission likelihood & Log survival function & Hazard function\\
+%& $f(t_i|t_j,g_{ji})=$ & $\log{S(t_i|t_j,g_{ji})}=$ & $H(t_i|t_j,g_{ji})=$ \\\hline
+% & 
+%\multirow{2}{*}{\begin{numcases}{f(t_i|t_j,g_{ji})=}
+%g_{ji}*e^{-g_{ji}*(t_i-t_j)}, & if $t_j<t_i$ \nonumber \\
+%0, & otherwise \nonumber
+%\end{numcases}} \\
+%\hline 
+%\end{tabular}
+%\end{table*} 
+Note that the computation of $S_p(t_j)$ is finished in pre-processing. $S_p(t_j)$ are constants in inference process which will not affect the survival analysis process. The range of $S_p(t_j)$ is [0,1]. Constraints of the former problem have no change.  
+\end{itemize}
+%--------------
+\item LSH-ConNie
+\\ConNie declares a weighted adjacency matrix $A$ each entry of which controls the conditional probability of edge transmission. In our method, transmission probability on an edge depends on diffusion speed of parent node's time($S_p(t_j)$) besides edge weight $A_{ji}$. We define the transmission rate function by combining $S_p(t_j)$ and edge weight, denoted as:
+\begin{equation}
+g_{ji}(t_j,A_{ji})=A_{ji}*S_p(t_j);
+\end{equation}
+When inferring the incoming edges of node $i$, the modified likelihood function of $i$ is:
+\begin{equation}
+\begin{aligned}\label{eq:ConnieUnConvex}
+L_{i}(A_{:,i};C) &=\prod_{c\in C;t_i^c<\infty} \bigg[ 1-\prod_{j:t_j \leq t_i}(1-w_{ji}g_{ji}(t_j^c,A_{ji}))\bigg] \\
+ &\ast \prod_{c\in C;t_i^c=\infty} \prod_{j:t_j^c<\infty}(1-g_{ji}(t_j^c,A_{ji}))
+\end{aligned}
+\end{equation}
+We have to transform this into a convex optimization problem as the way ConNie did. Similarly, we redefine the variables $B_{ji}^c$ and $\gamma_c$. Note that as we incorporate $S_p(t_j)$ into $B_{ji}^c$, the new defined variable $B^C$ is more than just a $N*N$ matrix ($N$ is the number of nodes in ground truth network). There are $|C|$ of $N*N$ matrix to be estimated in $B^C$, the size of which will change with the cascades amount.
+\begin{eqnarray} 
+&B_{ji}^c=1-g_{ji}(t_j^c,A_{ji})\\
+&\gamma_c=1-\prod_{j:t_j \leq t_i}(1-w_{ji}\ast g_{ji}(t_j^c,A_{ji})) \label{eq:ConnieGamma}
+\end{eqnarray}
+Our method makes no change to the constraints of $B_{ji}^c$ and $\gamma_c$ as the range of $S_p(t_j)$ is [0, 1], too. The objective problem becomes:
+\begin{equation}
+\max_{\gamma_c,B^C(:,i)}\prod_{c\in C;t_i^c<\infty} \gamma_c \ast \prod_{c\in C;t_i^c=\infty} \prod_{j:t_j^c<\infty}B_{ji}^c 
+\end{equation}
+\begin{eqnarray}
+& subject \quad to:\nonumber \\
+& 0 \leqslant B_{ji}^c \leqslant 1 \quad \forall j \nonumber \\
+& 0 \leqslant \gamma_c \leqslant 1 \quad \forall c \nonumber \\
+& \gamma_c+\prod_{j:t_j \leq t_i}\bigg(1-w_{ji}\ast \big(1-B_{ji}^c\big)\bigg) \leqslant 1 \quad \forall c. \nonumber 
+\end{eqnarray}
+Negative logarithm of the objective problem is shown in Eq.\ref{eq:ConnieObj}, in which $\hat{\gamma_c}=\log{\gamma_c}$ and $\hat{B_{ji}^c}=\log{B_{ji}^c}$:
+\begin{equation}\label{eq:ConnieObj}
+\min_{\gamma_c,B^C(:,i)}-\sum_{c\in C;t_i^c<\infty} \hat{\gamma_c} - \sum_{c\in C;t_i^c=\infty} \sum_{j:t_j^c<\infty}\hat{B_{ji}^c} 
+\end{equation}
+\begin{eqnarray}
+& subject \quad to:\nonumber \\
+& \hat{B_{ji}^c} \leqslant 0 \quad \forall j \nonumber \\
+& \hat{\gamma_c} \leqslant 0 \quad \forall c \nonumber \\
+& \log{\bigg[e^{\hat{\gamma_c}}+\prod_{j:t_j \leq t_i}\bigg(1-w_{ji}\ast \big(1- e^{\hat{B_{ji}^c}} \big)\bigg) \bigg] \leqslant 0} \quad \forall c. \nonumber 
+\end{eqnarray}
+The problem defined in Eq.\ref{eq:ConnieObj} is convex on its variables $\gamma_c$ and $B^C(:,i)$. 
+In order to transform Eq.\ref{eq:ConnieUnConvex} into convex problem, we have got more variables which might add to the computation burden. We'd like to propose a compromise to reduce variables amount when cascades number is large. We skip the $S_p$ property of the second part of Eq.\ref{eq:ConnieUnConvex}, which is:
+\begin{equation}
+\begin{aligned}\label{eq:ConnieUnConvex}
+L_{i}(A_{:,i};C) &=\prod_{c;t_i^c<\infty} \bigg[ 1-\prod_{j:t_j \leq t_i}(1-w_{ji}*g_{ji}(t_j^c,A_{ji}))\bigg] \\
+ &\ast \prod_{c;t_i^c=\infty} \prod_{j:t_j^c<\infty}(1- \underline{A_{ji}})
+\end{aligned}
+\end{equation}
+By this way, we can declare $B_{ji}^{'}=1-A_{ji}$ without considering its variance in different cascades, while $\gamma_c$ stays as it is in Eq.\ref{eq:ConnieGamma}. The number of variables reduces to $N*N+|C|$ as we demand.
+%--------------
+\item LSH-NetInf
+\\NetInf algorithm considers only the infection time interval in transmission probability function. We incorporate LSH method into NetInf by combining diffusion speed with the original transmission probability. Basically, the redefined $P_c(u,v)$ of exponential model and power-law model is:
+\begin{eqnarray}
+\hat{P_c}(u,v)=\alpha S_p(t_u)*e^{-\frac{t_v-t_u}{\alpha S_p(t_u)}} \nonumber \\
+\hat{P_c}(u,v)=(\alpha S_p(t_u)-1)\frac{1}{(t_v-t_u)^{\alpha S_p(t_u)}} \nonumber
+\end{eqnarray} 
+NetInf does not consider all possible propagation trees but only the most likely one. The modified likelihood in LSH-NetInf of all cascades with the maximum weighted propagation tree is:
+\begin{equation}
+\begin{aligned}
+P(C|G)&=\prod_{c\in C} \sum_{T\in \mathcal{T}_c(G)}P(c|T) \\
+&\approx \prod_{c\in C} \max_{T\in \mathcal{T}_c(G)}P(c|T) \nonumber \\
+&\approx \beta^q \varepsilon^{q'} (1-\varepsilon)^{s+s'}\prod_{(u,v)\in E_{T}}\hat{P_c}(v,u)
+\end{aligned}
+\end{equation}
+As noted in NetInf paper, $q$ is network edges number and $q'$ is $\varepsilon$-edges number in $T$; $s$ and $s'$ refer to those that did not transmit respectively.
+Note that our method just affects the pairwise transmission probability of the original NetInf algorithm without breaking its main structure or imposing extra computation burden.
+\end{itemize} 
+%==========================
+\subsection{Optimization methods}
+\subsubsection{Clustering cascades}
+
+\subsubsection{Dealing with root node}
